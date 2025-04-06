@@ -39,6 +39,11 @@ class TodoListScreen extends StatefulWidget {
 
 class _TodoListScreenState extends State<TodoListScreen> {
   final List<Todo> _todos = [];
+  int _nextId = 1;
+
+  String _generateId() {
+    return (_nextId++).toString();
+  }
 
   void _addTodo(Todo newTodo) {
     setState(() => _todos.add(newTodo));
@@ -56,7 +61,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TodoFormScreen(todo: index != null ? _todos[index] : null),
+        builder: (context) => TodoFormScreen(
+          todo: index != null ? _todos[index] : null,
+          generateId: index == null ? _generateId : null),
       ),
     );
 
@@ -88,18 +95,47 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
   Widget _buildTodoItem(int index) {
     final todo = _todos[index];
-    return Dismissible(
-      key: Key(todo.id),
-      direction: DismissDirection.endToStart,
-      background: Container(color: Colors.red),
-      onDismissed: (_) => _deleteTodo(index),
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         title: Text(todo.title),
         subtitle: Text(todo.description),
-        trailing: IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () => _navigateToFormScreen(context, index),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _navigateToFormScreen(context, index),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _confirmDelete(index),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _confirmDelete(int index) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Deseja realmente excluir esta tarefa?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              _deleteTodo(index);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
@@ -107,8 +143,9 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
 class TodoFormScreen extends StatefulWidget {
   final Todo? todo;
+  final String Function()? generateId;
 
-  const TodoFormScreen({super.key, this.todo});
+  const TodoFormScreen({super.key, this.todo, this.generateId});
 
   @override
   State<TodoFormScreen> createState() => _TodoFormScreenState();
@@ -163,7 +200,7 @@ class _TodoFormScreenState extends State<TodoFormScreen> {
   void _saveTodo() {
     if (_formKey.currentState!.validate()) {
       final newTodo = Todo(
-        id: widget.todo?.id ?? DateTime.now().toString(),
+        id: widget.todo?.id ?? widget.generateId?.call() ?? '1',
         title: _titleController.text,
         description: _descriptionController.text,
         date: DateTime.now(),
